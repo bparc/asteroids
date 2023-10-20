@@ -12,6 +12,18 @@ static v2_t V2(float x, float y)
 	return result;
 }
 
+static v2_t Add(v2_t A, v2_t B)
+{
+	v2_t result = { A.x + B.x,A.y + B.y };
+	return result;
+}
+
+static v2_t Mul(v2_t A, v2_t B)
+{
+	v2_t result = { A.x * B.x,A.y * B.y };
+	return result;
+}
+
 typedef union
 {
 	struct
@@ -85,10 +97,16 @@ static float Cos(float degrees)
 
 static float Lerp1(float A, float B, float t)
 {
-	float result = A;
-	if (t > 0.0f && t < 1.0f)
+	float result = A;	
+	result = (A * (1.0f - t) + B * t);
+	if (t <= 0.0f)
 	{
-		result = (A * (1.0f - t) + B * t);
+		t = A;
+	}
+
+	if (t >= 1.0f)
+	{
+		t = B;
 	}
 	return result;
 }
