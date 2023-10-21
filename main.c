@@ -18,7 +18,6 @@
 #include "math.h"
 #include "draw.h"
 
-#define ASTEROIDS_ALLOW_DECELERATION 0
 #define ASTEROIDS_SHOOT_RATE 2
 #define ASTEROIDS_HIT_COOLDOWN 2.0f
 
@@ -161,19 +160,6 @@ static void EnterGameMode(scene_t*scene,double time)
 
 static void Move(scene_t* scene, float dt, double time, controller_t* con)
 {
-#if 0
-	scene->Extends.x = fmaxf(scene->Extends.x - 2.0f * dt, 30.0f);
-	scene->Extends.y = fmaxf(scene->Extends.y - 2.0f * dt, 30.0f);
-#endif
-	if (scene->AsteroidCount <= 0)
-	{
-		AdvanceStage(scene, 4, time);
-		if (scene->Ship.Lifes < 4)
-		{
-			scene->Ship.Lifes++;
-		}
-	}
-
 	spaceship_t* ship = &scene->Ship;
 	if (ship->Lifes>0)
 	{
@@ -190,16 +176,6 @@ static void Move(scene_t* scene, float dt, double time, controller_t* con)
 			ship->Velocity.x += Sin(ship->Angle) * 80.0f * dt;
 			ship->Velocity.y -= Cos(ship->Angle) * 80.0f * dt;
 		}
-#if ASTEROIDS_ALLOW_DECELERATION
-		if (con->Analogs->y < 0.0f)
-		{
-			if (Dot(ship->Velocity, V2(Sin(ship->Angle), -Cos(ship->Angle))) > 0.0f)
-			{
-				ship->Velocity.x -= Sin(ship->Angle) * 20.0f * dt;
-				ship->Velocity.y += Cos(ship->Angle) * 20.0f * dt;
-			}
-		}
-#endif
 		ship->Velocity.x -= ship->Velocity.x * 1.0f * dt;
 		ship->Velocity.y -= ship->Velocity.y * 1.0f * dt;
 
@@ -285,6 +261,14 @@ static void Move(scene_t* scene, float dt, double time, controller_t* con)
 				}
 				scene->Asteroids[j--] = scene->Asteroids[--scene->AsteroidCount];
 				scene->Projectiles[index--] = scene->Projectiles[--scene->ProjectileCount];
+				if (scene->AsteroidCount <= 0)
+				{
+					AdvanceStage(scene, 4, time);
+					if (scene->Ship.Lifes < 4)
+					{
+						scene->Ship.Lifes++;
+					}
+				}
 				break;
 			}
 		}
@@ -296,8 +280,7 @@ typedef struct
 	double PrevTime;
 	scene_t Scene;
 	int32_t MemoryIntialized;
-	int32_t Paused;
-	int32_t InMainMenu;
+	int32_t MenuMode;
 } game_state_t;
 
 static int32_t _Init(game_state_t* state,double time)
@@ -306,14 +289,14 @@ static int32_t _Init(game_state_t* state,double time)
 	if (!state->MemoryIntialized)
 	{
 		memset(state, 0, sizeof(*state));
-		state->InMainMenu = TRUE;
+		state->MenuMode = TRUE;
 		//CreateGameMode(&state->Scene, time);
 		state->MemoryIntialized = TRUE;
 	}
 	return result;
 }
 
-static int32_t Menu(int32_t viewport[2], font_t* fonts,
+static int32_t _Menu(int32_t viewport[2], font_t* fonts,
 	controller_t* controllers, double time)
 {
 	int32_t result = TRUE;
@@ -332,7 +315,6 @@ static int32_t Menu(int32_t viewport[2], font_t* fonts,
 		result = 0;
 	}
 	glScalef(0.5f, 0.5f, 1.0f);
-	//DrawString(fonts, V2(5.0f, 5.0f), "asteroids! 1.0", V4(1.0f, 1.0f, 1.0f, 1.0f));
 	glPopMatrix();
 	return result;
 }
@@ -362,22 +344,22 @@ static int32_t Host(void* memory, int32_t allocationSize, int32_t viewport[2],
 
 		//int32_t targetRes[2] = { 640 / 2,420 / 2 };
 		int32_t targetRes[2] = { viewport[0] / 2,viewport[1] / 2 };
-		if (state->InMainMenu)
+		if (state->MenuMode)
 		{
-			if (!Menu(targetRes, fonts, controllers, time))
+			if (!_Menu(targetRes, fonts, controllers, time))
 			{
-				state->InMainMenu = 0;
+				state->MenuMode = 0;
 				EnterGameMode(&state->Scene, time);
 			}
 		}
-		else
+		else // if (state->MenuMode)
 		{
 			if (controllers->Menu)
 			{
-				state->InMainMenu = TRUE;
+				state->MenuMode = TRUE;
 			}
 
-			if ((state->PrevTime > 0.0f) && !state->Paused)
+			if ((state->PrevTime > 0.0f))
 			{
 				Move(&state->Scene, (float)(time - state->PrevTime), time, controllers);
 			}
